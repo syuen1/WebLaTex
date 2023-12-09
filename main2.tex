@@ -1,0 +1,218 @@
+\documentclass{llncs}
+\usepackage{amsmath,amsfonts,amssymb}
+\include{prooftree}
+\newtheorem{Def}{Definition}
+\newtheorem{Lem}{Lemma}
+\newcommand{\nnegreal}{\mathbb{R}^{\geq 0}}
+\newcommand{\ulim}[1]{\mathsf{ub}(#1)}
+\newcommand{\llim}[1]{\mathsf{lb}(#1)}
+\newcommand{\zsub}[1]{(\!\vert{#1}\vert\!)}
+
+\title{A Zone-based Reachability Analysis for Nested Timed Automata}
+\author{Seiichirou Tachi\inst{1} \and Shoji Yuen\inst{1} \and Mizuhito Ogawa\inst{2}}
+\institute{Graduate School of Informatics, Nagoya University, Japan \and
+Japan Advanced Institute of Science and Technology< Japan}
+\begin{document}
+\maketitle
+
+\section{Introduction}
+
+\section{Timed Automata}
+
+$\nnegreal$ denotes the set of non-negative real numbers.  An {\em interval}
+is one of $[\ell,u]$, $(\ell,u]$, $[\ell,u')$, and $(\ell, u')$ where
+$\ell,u\in\nnegreal$ and $u'\in\nnegreal\cup\{\infty\}$.  For an
+interval, `$[$' and `$]$' are the {\em closed} lower bound and upper bound
+respectively and `$($' and `$)$' are the {\em open} lower bound and upper bound.
+The open upper bound $\infty$ shows the interval has no upper bound.  The
+set of all intervals is $\mathcal{I}$ For an interval $I$, $\llim{I}=\ell$,
+$\ulim{I}=u'$ or $\ulim{I}=u$ for
+$[\ell,u]$, $(\ell,u)$, $[\ell,u')$, and $(\ell,u')$.
+
+\begin{Def}[Timed Automata]
+  A timed automaton is a tuple $\mathcal{A}=(Q,q_0,X,\Delta)$ where
+  \begin{itemize}
+    \item $Q$ is a finite set of control locations 
+    with the initial location $q_0\in Q$,
+  %  \item $F\subseteq Q$ is the set of final locations,
+    \item $X$ is a finite set of clocks,
+    \item $\Delta\subseteq Q\times\mathcal{O}\times Q$ where $\mathcal{O}$ is a set of operations.
+    A transition $\delta\in\Delta$ is a triplet $(q_1,\phi,q_2)$ written as $q_1\xrightarrow{\phi}q_2$
+    with $\phi\in\mathcal{O}$ as one of the following operations over $X$:
+    \begin{list}{}{}
+      \item [{\bf Local}] $\epsilon$, an internal operation;
+      \item [{\bf Test}] $x\in I?$ where $x$ is a clock and $I\in\mathcal{I}$; and
+      \item [{\bf Assignment}] $x\leftarrow I$ where $x$ is a clock and $I\in\mathcal{I}$.
+    \end{list}
+  \end{itemize}
+\end{Def}
+
+We write $\mathcal{A}(X)$ to explicitly show that $\mathcal{A}$'s clocks are $X$.
+
+A clock valuation over $X$ is a map from $X$ to $\nnegreal$.   The set of clock valuations over $X$
+is written as $N_X$.  The clock valuation assigning 0 to $X$ is denoted by $0_X$.
+
+\begin{Def}[Semantics of Timed automata]
+  Given a timed automaton $\mathcal{A}=(Q,q_0,X,\Delta)$, a configuration
+  of $\mathcal{A}$ is $(q,\nu)$ where $q\in Q$ and $\nu\in N_X$.
+  A transition $(q_1,\nu_1)\xrightarrow{\phi}(q_2,\nu_2)$ where
+  \begin{itemize}
+    \item $(q_1,\nu_1)\xrightarrow{\epsilon}(q_2,\nu_2)$ with $\nu_1=\nu_2$ and $(q_1,\epsilon,q_2)\in\Delta$;
+    \item $(q_1,\nu_1)\xrightarrow{x\in I?}(q_2,\nu_2)$ with $(q_1,x\in I?,q_2)\in\Delta$, $\nu_1=\nu_2$ and $\nu_1(x)\in I$; and
+    \item $(q_1,\nu_1)\xrightarrow{x\leftarrow I}(q_2,\nu_2)$ with $(q_1,x\leftarrow I,q_2)\in\Delta$, $\nu_2=\nu_1[x\mapsto r]$ where $r\in I$
+  \end{itemize}
+\end{Def}
+
+\section{Nested Timed Automata}
+
+\begin{Def}
+  A nested timed automaton (NeTA) is given by $\mathcal{N}=(T,\mathcal{A}_0,\Delta,X_g)$ where
+  \begin{itemize}
+    \item $T=\{\mathcal{A}_0,\cdots,\mathcal{A}_n\}$ is a set of timed automata whose clocks are $X_c$ with
+    the transitions $(q_1,\phi,q_2)\in\Delta(\mathcal{A}_i)$ where $\phi$ is an operation over $X_c\cup X_g$,
+    \item $A_0\in T$ is the initial timed automaton,
+    \item $X_g$ is the set of global clocks, and
+    \item $\Delta_g\subseteq (T\times\{\mathsf{push}\}\times TT)\cup(TT(Q(T))\times\{\mathsf{pop}\}\times T(Q(T)))$ with
+    \begin{list}{}{}
+      \item[$\mathsf{push}$] $\mathcal{A}_i\xrightarrow{\mathsf{push}}\mathcal{A}_i\mathcal{A}_j$, and
+      \item[$\mathsf{pop}$] $\mathcal{A}_i\mathcal{A}_j(q_1)\xrightarrow{\mathsf{pop}}\mathcal{A}_i(q_2)$ with 
+      $q_1\in Q(\mathcal{A}_j),q_2\in Q(\mathcal{A_i})$
+    \end{list}
+  \end{itemize}
+  $Q(\mathcal{A}_i)$ for $\mathcal{A}_i\in T$ is assumed mutually disjoint.  We write $q(\mathcal{A}_i)$ for $q$ to show $q\in Q(\mathcal{A}_i)$. 
+\end{Def}
+
+\begin{Def}
+  A configuration of NeTA is given by $(c,\nu_g)$ where $c\in\mathcal{C}^\ast$ with 
+  $\mathcal{C}=\bigcup_i Q(\mathcal{A}_i)\times \nu_{X_c}$ and $\nu_g\in \nu_{X_g}$.
+
+  \begin{itemize}
+    \item $(c_1,\nu_g^1)\xrightarrow{t}(c_2,\nu_g^2)$ where $t\in\mathbb{R}_{\geq 0}$, $c_2=c_1+t$ and $\nu_g^2=\nu_g^1+t$;
+    \item $(c(q_1(\mathcal{A}_i),\nu_c^1),\nu_g^1)\xrightarrow{\phi}(c(q_2(\mathcal{A}_i),\nu_c^2),\nu_g^2)$ where 
+    $(q_1,\nu_c^1\cup \nu_g^1)\xrightarrow{\phi}(q_2,\nu_c^1\cup \nu_g^2)$ is a transition of $\mathcal{A}_i(X_c\cup X_g)$;
+    \item $(c(q_1(\mathcal{A}_i),\nu_c^1),\nu_g)\xrightarrow{\mathsf{push}}(c(q_1(\mathcal{A}_i),\nu_c^1)(q_0(\mathcal{A}_j),0_{X_c}),\nu_g)$
+    where $q_0$ is the initial location of $\mathcal{A}_j$ when $\mathcal{A}_i\xrightarrow{\mathsf{push}}\mathcal{A_i}\mathcal{A_j}\in\Delta_g$; and
+    \item $(c(q_1(\mathcal{A}_i),\nu_c^1)(q(\mathcal{A}_j),\nu_c^2),\nu_g)\xrightarrow{\mathsf{pop}}(c(q_2(\mathcal{A}_i),\nu_c^1),\nu_g)$
+    when $\mathcal{A}_i(q_1)\mathcal{A}_j\xrightarrow{\mathsf{pop}}\mathcal{A}_i(q_2)\in\Delta_g$
+  \end{itemize}
+\end{Def}
+
+\section{Push-down automata over Zones}
+
+For a set of items $Y$,
+A {\em zone} over $Y$ is a set of clock valuations given by a conjunction of constraints 
+of the form $x-y\triangleleft c$ where $x,y\in Y$, $c\in\mathbb{Z}$, and
+$\triangleleft\in\{<,\leq\}$.
+
+For a zone $Z$, $DBM(Z)$ is a set of quadruples $(x,y,c,\triangleleft)$ where $x,y\in Y$, $c\in\mathbb{Z}$, and 
+$\triangleleft\in\{<,\leq\}$.   Each quadruple is written as $x-y\triangleleft c$.
+
+For clocks $X$, the PDZ-items $Z_x=X\cup X^\bullet\cup\{\vdash,\vdash^\bullet
+
+
+
+\begin{itemize}
+  \item $\mathsf{Test}(Z,x\in I)=Z\wedge\{x-\mathbf{0}\triangleleft\ulim{I},\mathbf{0}-x\triangleleft-\llim{I}\}$;
+  \item $\mathsf{Free}(Z,Y)=(Z\ominus Y)\oplus Y$;
+  \item $\mathsf{Set}(Z,x\leftarrow I)=\mathsf{Free}(Z,\{x\})\wedge\{x-\mathbf{0}\triangleleft\ulim{I},\mathbf{0}-x\triangleleft-\llim{I}\}$;
+  \item $\mathsf{Reset}(Z,Y)=\mathsf{Free}(Z,Y)\wedge\{y-\mathbf{0}\leq 0\;|\;y\in Y\}$;
+  \item $\mathsf{Copy}(Z,x\leftarrow y)=\mathsf{Free}(Z,\{x\})\wedge\{x-y\leq 0,y-x\leq 0\}$;
+  \item $Z\zsub{y\mapsto z}=\mathsf{Copy}(Z,z\leftarrow y)\ominus\{y\}$
+\end{itemize}
+
+\section{Simulation}
+
+A binary relation $\preceq$ on configurations of timed automata $(q,v)$ is
+a {\em simulation} if, whenenver $(q,v)\preceq (q',v')$, we have
+$q=q'$ and
+\begin{itemize}
+  \item for each delay $t\in\mathbb{R}_{\leq 0}$, $(q,v+t)\preceq (q,v'+t)$;
+  \item $(q,v)\xrightarrow{\epsilon}(q_1,v)$ implies 
+  that $(q,v')\xrightarrow{\epsilon}(q_1,v')$;
+  \item $(q,v)\xrightarrow{x\in I?}(q_1,v)$ implies
+  $(q,v')\xrightarrow{x\in I?}(q_1,v)$; and
+  \item $(q,v)\xrightarrow{x\leftarrow I}(q_1,\nu_1)$ implies there exists $v'_1$
+  such that $(q,v')\xrightarrow{x\leftarrow I}(q_1,v'_1)$ and 
+  $(q_1,\nu_1)\preceq (q_1,v'_1)$
+\end{itemize}
+
+We write $v\preceq_q v'$ for $(q,v)\preceq (q,v')$.  Given a pair of zones $Z,Z'$,
+$Z\preceq_q Z'$ if for all $v\in Z$ there exists $v'\in Z'$ such that
+$v\preceq_q v'$.
+
+\begin{Lem}
+  \begin{itemize}
+    \item If $(q,Z)\xrightarrow{\phi}(q_1,Z_1)$ and $Z\preceq_q Z'$, then
+  for some $Z'_1$, $(q,Z')\xrightarrow{\phi}(q_1,Z'_1)$ and $Z_1\preceq Z'_1$; and
+    \item If $(q,Z)\xrightarrow{t}(q,Z_1)$ and $Z\preceq_q Z'$, then 
+  there exists $Z'_1$ such that $(q,Z')\xrightarrow{t}(q,Z'_1)$ and 
+  $Z_1\preceq Z'_1$
+  \end{itemize}
+\end{Lem}
+
+\[
+\begin{prooftree}
+{}\justifies
+{\mathfrak{S}:=\{(q_0(A_0),Z_0)\}, \mathcal{S}_{(q_0(\mathcal{A}_0),Z_0)}:=\{(q_0(\mathcal{A}_0),Z_0)\}}
+\using{[\mathsf{start}]}
+\end{prooftree}
+\]
+
+\[
+  \begin{prooftree}
+    {(q,Z)\in\mathfrak{S}\quad (q',Z')\in\mathcal{S}_{q,Z}\quad q'\xrightarrow{\epsilon}q''}
+    \justifies
+    {\mathcal{S}_{(q,Z)}:=\mathcal{S}_{(q,Z)}\cup\{(q'',Z')\}\quad \mbox{unless}\ \exists(q'',Z'')\in\mathcal{S}_{(q,Z)}\;Z'\preceq_{q''}Z''}
+    \using{[\mathsf{local}]}
+  \end{prooftree}
+\]
+
+\[
+  \begin{prooftree}
+    {(q,Z)\in\mathfrak{S}\quad (q',Z')\in\mathcal{S}_{q,Z}\quad q'\xrightarrow{x\in I}q''\quad Z''=Test(Z',x\in I)}
+    \justifies
+    {\mathcal{S}_{(q,Z)}:=\mathcal{S}_{(q,Z)}\cup\{(q'',Z'')\}\quad \mbox{unless}\ \exists(q'',Z''')\in\mathcal{S}_{(q,Z)}\;Z''\preceq_{q''}Z'''}
+    \using{[\mathsf{test}]}
+  \end{prooftree}
+\]
+
+\[
+  \begin{prooftree}
+    {(q,Z)\in\mathfrak{S}\quad (q',Z')\in\mathcal{S}_{q,Z}\quad q'\xrightarrow{x\leftarrow I}q''\quad Z''=Set(Z',x\leftarrow I)}
+    \justifies
+    {\mathcal{S}_{(q,Z)}:=\mathcal{S}_{(q,Z)}\cup\{(q'',Z'')\}\quad \mbox{unless}\ \exists(q'',Z''')\in\mathcal{S}_{(q,Z)}\;Z''\preceq_{q''}Z'''}
+    \using{[\mathsf{assign}]} 
+  \end{prooftree}
+\]
+
+\[
+  \begin{prooftree}
+    {(q(\mathcal{A}_i),Z)\in\mathfrak{S}\quad (q',Z')\in\mathcal{S}_{q(A_i),Z}\quad \mathcal{A}_i\xrightarrow{\mathsf{push}}\mathcal{A}_j
+    \quad Z''=Reset(Z',X_c\cup\{\vdash^\bullet\})}
+    \justifies
+    {\mathfrak{S}:=\mathfrak{S}\cup\{(q_0(\mathcal{A}_j),Z'')\}\quad \mathcal{S}_{(q_0(\mathcal{A}_j),Z'')}\quad
+    \mbox{unless}\ \exists (q_0,\mathcal{A}_j,Z''')\in\mathfrak{S}\;Z''\sim_{q_0(A_j)}Z'''}
+    \using{[\mathsf{pop}]}
+  \end{prooftree}
+  \mbox{where $q_0$ is the initial location of $\mathcal{A}_j$}.
+\]
+
+\[
+  \begin{prooftree}
+    {\begin{array}{l}
+      (q(\mathcal{A}_i),Z)\in\mathfrak{S}\quad (q',Z')\in\mathcal{S}_{(q(\mathcal{A}_i),Z)}\quad
+      \mathcal{A}_i\xrightarrow{\mathsf{push}}\mathcal{A}_j\quad Z''\sim_{q_0(\mathcal{A}_j)}Z_1\quad
+      Z''=Reset(Z',X_c\cup\{\vdash^\bullet\})\\
+      (q_0(\mathcal{A}_j),Z_1)\in\mathfrak{S}\quad (q'_1,Z'_1)\in\mathcal{S}_{(q_0(\mathcal{A}_j))}
+      \quad q'_1\in F(\mathcal{A}_j)\quad \mathcal{A}_j\mathcal{A}_i(q')\xrightarrow{\mathsf{pop}}\mathcal{A}_i(q_2)\quad
+      Z_2=Up(Z'\odot Z'_1)
+    \end{array}}
+    \justifies
+    {
+    \mathcal{S}_{(q(\mathcal{A}_i),Z)}:=\mathcal{S}_{(q(\mathcal{A}_i),Z)}\cup\{(q_2,Z_2)\}\quad
+    \mbox{unless}\ \exists(q_2,Z'_2)\in\mathcal{S}_{(q(\mathcal{A}_i),Z)}\;Z_2\preceq_{q_2}Z'_2
+    }
+    \using{[\mathsf{pop}]}
+  \end{prooftree}
+\]
+\end{document}
