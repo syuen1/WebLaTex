@@ -1,0 +1,9 @@
+*.dvi
+*.log
+*.synctex.gz
+*.fls
+*.aux
+*.out
+*.snm
+*.vrb
+*.fdb_latexmk
